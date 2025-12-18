@@ -1,7 +1,57 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ShieldCheck, ArrowRight, User, FileSearch, Scale, Gavel, CheckCircle, Info } from 'lucide-react'
+import { ShieldCheck, ArrowRight, User, FileSearch, Scale, Gavel, CheckCircle, Info, ChevronDown } from 'lucide-react'
+
+// Static FAQ data - no backend, no LLM, deterministic
+const faqData = [
+    {
+        question: "Is this system fully automated?",
+        answer: "No. LoanOps AI assists with loan operations. Final decisions follow predefined rules and support human review."
+    },
+    {
+        question: "Is AI approving loans?",
+        answer: "No. AI is used only for explanations and orchestration. Eligibility and approval follow deterministic lending rules."
+    },
+    {
+        question: "How do you prevent fake data?",
+        answer: "This demo uses mock verification. In production, identity verification can integrate with DigiLocker."
+    },
+    {
+        question: "What loan amounts are supported?",
+        answer: "Automated processing is designed for micro and small-ticket loans between ₹5,000 and ₹50,000."
+    },
+    {
+        question: "Is this production-ready?",
+        answer: "This is a hackathon prototype designed to demonstrate system orchestration, not a production deployment."
+    }
+]
+
+// FAQ Item component with accordion behavior
+function FAQItem({ question, answer, isOpen, onToggle }) {
+    return (
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <button
+                onClick={onToggle}
+                className="w-full flex items-center justify-between p-4 text-left bg-white hover:bg-slate-50 transition-colors"
+            >
+                <span className="text-sm font-medium text-slate-800">{question}</span>
+                <ChevronDown
+                    size={16}
+                    className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                />
+            </button>
+            {isOpen && (
+                <div className="px-4 pb-4 bg-slate-50 border-t border-slate-100">
+                    <p className="text-sm text-slate-600 leading-relaxed">{answer}</p>
+                </div>
+            )}
+        </div>
+    )
+}
 
 export default function Landing() {
+    const [openFaq, setOpenFaq] = useState(null)
+
     return (
         <div className="min-h-screen bg-white flex flex-col">
 
@@ -161,6 +211,26 @@ export default function Landing() {
                                 <strong className="text-slate-800">DigiLocker-ready design.</strong> Identity verification architecture supports DigiLocker integration for production use.
                             </p>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Common Questions - FAQ */}
+            <section className="w-full px-6 py-16 bg-slate-50 border-t border-slate-100">
+                <div className="max-w-2xl mx-auto">
+                    <h2 className="text-xl font-bold text-slate-900 mb-2 text-center">Common Questions</h2>
+                    <p className="text-sm text-slate-500 mb-8 text-center">Addressing expected concerns about this system</p>
+
+                    <div className="space-y-3">
+                        {faqData.map((faq, index) => (
+                            <FAQItem
+                                key={index}
+                                question={faq.question}
+                                answer={faq.answer}
+                                isOpen={openFaq === index}
+                                onToggle={() => setOpenFaq(openFaq === index ? null : index)}
+                            />
+                        ))}
                     </div>
                 </div>
             </section>
