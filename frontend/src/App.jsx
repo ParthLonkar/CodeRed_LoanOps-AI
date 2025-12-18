@@ -19,6 +19,7 @@ import {
   Loader2,
   ArrowRight
 } from 'lucide-react'
+import VerificationForm from './components/VerificationForm'
 
 // --- TYPEWRITER COMPONENT ---
 const Typewriter = ({ text, onComplete }) => {
@@ -177,6 +178,12 @@ function App() {
     }
   }
 
+  const handleVerificationComplete = (data) => {
+    // Append response from verification and advance stage if verified
+    setMessages(prev => [...prev, { sender: 'bot', text: data.reply, timestamp: new Date() }])
+    if (data.verified) setCurrentStage('underwriting')
+  }
+
   const formatTime = (date) => {
     if (!date) return 'Just now'
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -294,6 +301,13 @@ function App() {
                  <span className="text-xs font-semibold text-blue-500 uppercase tracking-wider">Analyzing</span>
               </div>
             </motion.div>
+          )}
+
+          {/* Show verification form when in verification stage */}
+          {currentStage === 'verification' && (
+            <div className="max-w-xl">
+              <VerificationForm sessionId={sessionIdRef.current} onComplete={handleVerificationComplete} />
+            </div>
           )}
 
           {sanctionLetter && (
