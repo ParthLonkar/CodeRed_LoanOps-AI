@@ -51,7 +51,7 @@ const Typewriter = ({ text, onComplete }) => {
 const AgentVisualizer = ({ currentStage }) => {
     const steps = [
         { id: 'sales', label: 'Sales Agent', icon: User, sub: 'Data Collection' },
-        { id: 'credit', label: 'Credit Analyst', icon: FileSearch, sub: 'Bureau Check' },
+        { id: 'credit', label: 'Credit Analyst', icon: FileSearch, sub: 'Identity & Bureau' },
         { id: 'risk', label: 'Risk Engine', icon: Scale, sub: 'Policy Rules' },
         { id: 'sanction', label: 'Sanctioning', icon: Gavel, sub: 'Final Approval' }
     ]
@@ -476,10 +476,13 @@ export default function AppChat() {
                         </div>
                     </div>
 
-                    {/* AI Governance Compliance Note */}
-                    <div className="shrink-0 mt-4 px-3 py-2.5 bg-white/[0.02] border border-white/5 rounded-xl">
+                    {/* AI Governance & Compliance Note */}
+                    <div className="shrink-0 mt-4 px-3 py-2.5 bg-white/[0.02] border border-white/5 rounded-xl space-y-1.5">
                         <p className="text-[10px] text-slate-500 leading-relaxed text-center">
                             <span className="text-blue-400 font-semibold">AI Governance:</span> AI assists in data collection & explanation. All credit decisions follow predefined lending rules.
+                        </p>
+                        <p className="text-[9px] text-slate-600 leading-relaxed text-center">
+                            Identity verification in production can be integrated with <span className="text-slate-400">DigiLocker</span> for secure, government-backed document validation.
                         </p>
                     </div>
 
