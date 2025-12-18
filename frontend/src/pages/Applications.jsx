@@ -285,6 +285,9 @@ export default function Applications() {
                     <p className="text-[10px] text-slate-400">
                         Note: Automated processing applies to micro-loan applications (₹5,000 – ₹50,000) only.
                     </p>
+                    <p className="text-[10px] text-slate-500 mt-2 pt-2 border-t border-slate-100">
+                        <span className="font-medium text-slate-400">Demo Note:</span> This demo uses mock verification. Production systems may integrate DigiLocker for identity validation.
+                    </p>
                 </div>
             </main>
         </div>

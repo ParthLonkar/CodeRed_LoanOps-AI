@@ -90,8 +90,13 @@ export default function Landing() {
                         Designed for micro & small-ticket loans
                     </p>
 
+                    {/* Trust & Compliance Note */}
+                    <p className="mt-6 text-xs text-slate-400">
+                        Designed to support DigiLocker-based identity verification in production.
+                    </p>
+
                     {/* Footer Note */}
-                    <p className="mt-6 text-sm text-slate-400">
+                    <p className="mt-4 text-sm text-slate-400">
                         Built for CodeRed Hackathon • React + FastAPI + AI Agents
                     </p>
                 </div>
