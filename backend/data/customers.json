@@ -1,0 +1,26 @@
+[
+    {
+        "id": "1",
+        "name": "Alice Johnson",
+        "credit_score": 750,
+        "income": 60000,
+        "existing_debt": 5000,
+        "email": "alice@example.com"
+    },
+    {
+        "id": "2",
+        "name": "Bob Smith",
+        "credit_score": 600,
+        "income": 40000,
+        "existing_debt": 20000,
+        "email": "bob@example.com"
+    },
+    {
+        "id": "3",
+        "name": "Charlie Brown",
+        "credit_score": 680,
+        "income": 55000,
+        "existing_debt": 10000,
+        "email": "charlie@example.com"
+    }
+]
