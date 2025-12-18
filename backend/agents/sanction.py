@@ -4,6 +4,7 @@ Sanction Letter Generator
 Final stage - Generates PDF sanction letter for approved loans.
 
 Uses FPDF2 for PDF generation.
+Implements policy-based automated approval vs human-in-the-loop gating.
 """
 
 import os
@@ -11,6 +12,14 @@ from datetime import datetime
 from typing import Dict, Any
 from fpdf import FPDF
 from utils.crypto_utils import decrypt_data
+
+
+# =============================================================================
+# POLICY CONFIGURATION
+# =============================================================================
+# Maximum loan amount eligible for automated approval (no human review required)
+# Loans above this threshold require human-in-the-loop review
+AUTO_APPROVAL_LIMIT = 50000  # Rs. 50,000
 
 
 # Ensure the generated folder exists
@@ -207,19 +216,21 @@ def generate_sanction_letter(data: dict) -> dict:
 
 def sanction_agent_node(state: Dict, user_message: str) -> Dict[str, Any]:
     """
-    Sanction Agent - Handles loan approval finalization.
+    Sanction Agent - Handles loan approval finalization with policy-based gating.
     
-    Generates PDF sanction letter for approved loans.
-    Uses Gemini API to generate natural language explanations (optional, fail-safe).
+    Policy:
+    - Loans <= AUTO_APPROVAL_LIMIT (Rs. 50,000): Automated approval
+    - Loans > AUTO_APPROVAL_LIMIT: Forwarded to human review
     
     Args:
         state: Current conversation state
         user_message: User's input message
     
     Returns:
-        Dict with reply and sanction details
+        Dict with reply, sanction details, and decision metadata
     """
     print("[SANCTION AGENT] Processing sanction request...")
+    
     # Ensure verification completed
     if not state.get("verified"):
         print("[SANCTION AGENT] Attempted sanction without verification")
@@ -227,17 +238,22 @@ def sanction_agent_node(state: Dict, user_message: str) -> Dict[str, Any]:
             "reply": "Cannot proceed: verification incomplete. Please complete identity verification first.",
             "sanction_status": "blocked",
             "loan_details": None,
-            "pdf_result": None
+            "pdf_result": None,
+            "decision_type": None,
+            "decision_reason": None,
+            "policy_applied": None
         }
     
     # Get session_id from state (fallback to timestamp if not available)
     session_id = state.get("session_id", datetime.now().strftime("%Y%m%d%H%M%S"))
     
     # Loan details - in production, these would come from underwriting
+    loan_amount = state.get("loan_amount", 100000)
+    
     loan_details = {
         "session_id": session_id,
         "customer_name": state.get("customer_name", "Valued Customer"),
-        "loan_amount": state.get("loan_amount", 100000),
+        "loan_amount": loan_amount,
         "tenure": state.get("tenure", 24),
         "emi": state.get("emi", 4650.0),
         "interest_rate": state.get("interest_rate", 10.5),
@@ -256,26 +272,34 @@ def sanction_agent_node(state: Dict, user_message: str) -> Dict[str, Any]:
         except Exception as e:
             print(f"[SANCTION AGENT] Failed to decrypt verification blob: {e}")
     
-    # Generate PDF sanction letter
-    pdf_result = generate_sanction_letter(loan_details)
-    
-    if pdf_result["status"] == "generated":
-        # =====================================================================
-        # USE GEMINI FOR ENHANCED EXPLANATION (OPTIONAL, FAIL-SAFE)
-        # =====================================================================
-        try:
-            from utils.gemini_explainer import generate_explanation
-            
-            explanation = generate_explanation({
-                "status": "APPROVED",
-                "reason": "All eligibility criteria met",
-                "loan_amount": loan_details["loan_amount"],
-                "salary": state.get("salary", "N/A"),
-                "emi": loan_details["emi"]
-            })
-            
-            # Append loan details to Gemini's explanation
-            reply = f"""{explanation}
+    # =========================================================================
+    # POLICY-BASED DECISION: AUTOMATED vs HUMAN REVIEW
+    # =========================================================================
+    if loan_amount <= AUTO_APPROVAL_LIMIT:
+        # AUTOMATED APPROVAL - within policy threshold
+        decision_type = "AUTOMATED"
+        decision_source = "System (Policy-Based)"
+        decision_reason = f"Loan amount (Rs. {loan_amount:,}) is within the automated approval limit of Rs. {AUTO_APPROVAL_LIMIT:,}"
+        policy_applied = f"AUTO_APPROVAL_LIMIT: Rs. {AUTO_APPROVAL_LIMIT:,}"
+        
+        print(f"[SANCTION AGENT] Automated approval: {loan_amount} <= {AUTO_APPROVAL_LIMIT}")
+        
+        # Generate PDF sanction letter
+        pdf_result = generate_sanction_letter(loan_details)
+        
+        if pdf_result["status"] == "generated":
+            try:
+                from utils.gemini_explainer import generate_explanation
+                
+                explanation = generate_explanation({
+                    "status": "APPROVED_AUTOMATED",
+                    "reason": "All eligibility criteria met - within automated approval policy",
+                    "loan_amount": loan_details["loan_amount"],
+                    "salary": state.get("salary", "N/A"),
+                    "emi": loan_details["emi"]
+                })
+                
+                reply = f"""{explanation}
 
 📄 Loan Summary:
 - Amount: Rs. {loan_details['loan_amount']:,}
@@ -283,12 +307,14 @@ def sanction_agent_node(state: Dict, user_message: str) -> Dict[str, Any]:
 - Tenure: {loan_details['tenure']} months
 - Monthly EMI: Rs. {loan_details['emi']:,.2f}
 
+✅ This loan falls within the automated approval policy (up to Rs. {AUTO_APPROVAL_LIMIT:,}) and has been approved.
+
+📋 Decision: Approved by System (Policy-Based)
 Your sanction letter has been generated: {pdf_result['file']}"""
-            
-        except Exception as e:
-            print(f"[SANCTION AGENT] Gemini explainer failed, using default: {e}")
-            # Fallback to default message
-            reply = f"""🎉 LOAN SANCTIONED SUCCESSFULLY!
+                
+            except Exception as e:
+                print(f"[SANCTION AGENT] Gemini explainer failed, using default: {e}")
+                reply = f"""🎉 LOAN SANCTIONED SUCCESSFULLY!
 
 Congratulations! Your loan application has been approved.
 
@@ -298,30 +324,71 @@ Congratulations! Your loan application has been approved.
 - Tenure: {loan_details['tenure']} months
 - Monthly EMI: Rs. {loan_details['emi']:,.2f}
 
-Your sanction letter has been generated: {pdf_result['file']}
+✅ This loan falls within the automated approval policy (up to Rs. {AUTO_APPROVAL_LIMIT:,}) and has been approved.
 
-Thank you for choosing LoanOps AI! Is there anything else you would like to know about your loan?"""
-        
-        print("[SANCTION AGENT] Loan sanctioned successfully!")
-    else:
-        reply = """✅ LOAN APPROVED!
+📋 Decision: Approved by System (Policy-Based)
+Your sanction letter has been generated: {pdf_result['file']}"""
+            
+            # Store sanction letter filename in state
+            state["sanction_letter"] = pdf_result["file"]
+            sanction_status = "completed"
+            
+        else:
+            reply = f"""✅ LOAN APPROVED!
 
-Your loan has been approved. However, there was an issue generating the sanction letter.
+Your loan has been approved under the automated approval policy. However, there was an issue generating the sanction letter.
 Our team will send you the sanction letter shortly via email.
 
-Thank you for choosing LoanOps AI!"""
+📋 Decision: Approved by System (Policy-Based)"""
+            sanction_status = "completed"
+            
+        print("[SANCTION AGENT] Automated approval completed!")
         
-        print(f"[SANCTION AGENT] Loan approved but PDF failed: {pdf_result.get('error')}")
+    else:
+        # HUMAN REVIEW REQUIRED - exceeds policy threshold
+        decision_type = "HUMAN_REVIEW"
+        decision_source = "Human-in-the-Loop"
+        decision_reason = f"Loan amount (Rs. {loan_amount:,}) exceeds the automated approval limit of Rs. {AUTO_APPROVAL_LIMIT:,}"
+        policy_applied = f"AUTO_APPROVAL_LIMIT: Rs. {AUTO_APPROVAL_LIMIT:,}"
+        pdf_result = {"status": "not_generated", "file": None}
+        
+        print(f"[SANCTION AGENT] Human review required: {loan_amount} > {AUTO_APPROVAL_LIMIT}")
+        
+        reply = f"""📋 APPLICATION FORWARDED FOR REVIEW
+
+Your loan application has passed all automated eligibility checks and has been forwarded for manual review.
+
+📄 Application Summary:
+- Requested Amount: Rs. {loan_details['loan_amount']:,}
+- Interest Rate: {loan_details['interest_rate']}% p.a.
+- Tenure: {loan_details['tenure']} months
+- Monthly EMI: Rs. {loan_details['emi']:,.2f}
+
+⏳ This loan exceeds the automated approval limit (Rs. {AUTO_APPROVAL_LIMIT:,}) and has been forwarded for manual review by our credit team.
+
+📋 Decision: Pending Human Review
+Expected turnaround: 1-2 business days
+
+You will receive an update via email once the review is complete. Thank you for your patience."""
+
+        sanction_status = "pending_human_review"
+        
+        print("[SANCTION AGENT] Forwarded to human review")
     
-    # Store sanction letter filename in state for application tracking
-    if pdf_result["status"] == "generated":
-        state["sanction_letter"] = pdf_result["file"]
+    # Store decision metadata in state
+    state["decision_type"] = decision_type
+    state["decision_source"] = decision_source
     
     return {
         "reply": reply,
-        "sanction_status": "completed",
+        "sanction_status": sanction_status,
         "loan_details": loan_details,
         "pdf_result": pdf_result,
-        "sanction_letter": pdf_result.get("file")
+        "sanction_letter": pdf_result.get("file"),
+        # Decision Metadata
+        "decision_type": decision_type,
+        "decision_reason": decision_reason,
+        "decision_source": decision_source,
+        "policy_applied": policy_applied
     }
 

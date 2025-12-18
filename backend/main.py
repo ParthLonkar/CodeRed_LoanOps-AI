@@ -84,6 +84,11 @@ class ChatResponse(BaseModel):
     risk_score: Optional[int] = None  # 0-100, lower is better
     risk_level: Optional[str] = None  # Low / Medium / High
     risk_factors: Optional[List[str]] = None  # Explainable factors
+    # Decision Metadata (from sanction agent)
+    decision_type: Optional[str] = None  # AUTOMATED | HUMAN_REVIEW
+    decision_reason: Optional[str] = None  # Human-readable explanation
+    decision_source: Optional[str] = None  # System (Policy-Based) | Human-in-the-Loop
+    policy_applied: Optional[str] = None  # Threshold used
 
 # ============================================================================
 # In-Memory Session State (Minimal, for hackathon demo)
@@ -413,6 +418,12 @@ async def chat_endpoint(request: ChatRequest, authorization: Optional[str] = Hea
         risk_level = session.get("risk_level")
         risk_factors = session.get("risk_factors")
         
+        # Get decision metadata if available (from sanction stage)
+        decision_type = session.get("decision_type")
+        decision_reason = session.get("decision_reason") 
+        decision_source = session.get("decision_source")
+        policy_applied = session.get("policy_applied")
+        
         # Return structured response for frontend
         return ChatResponse(
             reply=result["reply"],
@@ -422,7 +433,11 @@ async def chat_endpoint(request: ChatRequest, authorization: Optional[str] = Hea
             sanction_letter=sanction_letter,
             risk_score=risk_score,
             risk_level=risk_level,
-            risk_factors=risk_factors
+            risk_factors=risk_factors,
+            decision_type=decision_type,
+            decision_reason=decision_reason,
+            decision_source=decision_source,
+            policy_applied=policy_applied
         )
     
     except HTTPException:
