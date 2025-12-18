@@ -47,6 +47,17 @@ const Typewriter = ({ text, onComplete }) => {
     return <span>{displayedText}</span>
 }
 
+// --- AGENT ROLE MAPPING ---
+const getAgentInfo = (stage) => {
+    const agents = {
+        sales: { name: 'Sales Agent', icon: User, color: 'text-blue-600', bg: 'bg-blue-100' },
+        credit: { name: 'Verification Agent', icon: FileSearch, color: 'text-amber-600', bg: 'bg-amber-100' },
+        risk: { name: 'Underwriting Agent', icon: Scale, color: 'text-purple-600', bg: 'bg-purple-100' },
+        sanction: { name: 'Sanction Agent', icon: Gavel, color: 'text-emerald-600', bg: 'bg-emerald-100' }
+    }
+    return agents[stage] || agents.sales
+}
+
 // --- UPDATED AGENT VISUALIZER (COMPACT & CONNECTED) ---
 const AgentVisualizer = ({ currentStage }) => {
     const steps = [
@@ -139,7 +150,7 @@ export default function AppChat() {
     const { user, token, logout } = useAuth()
 
     const [messages, setMessages] = useState([
-        { sender: 'bot', text: 'System Initialized. I am your Agentic Loan Orchestrator. How can I assist you today?', timestamp: new Date() }
+        { sender: 'bot', text: 'System initialized. Loan Operations Orchestrator is ready. Please provide borrower details to begin the application process.', timestamp: new Date(), stage: 'sales' }
     ])
     const [inputText, setInputText] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -176,7 +187,7 @@ export default function AppChat() {
             })
 
             const data = await response.json()
-            setMessages(prev => [...prev, { sender: 'bot', text: data.reply, timestamp: new Date() }])
+            setMessages(prev => [...prev, { sender: 'bot', text: data.reply, timestamp: new Date(), stage: data.stage || currentStage }])
 
             if (data.stage) setCurrentStage(data.stage)
             if (data.application_status) setApplicationStatus(data.application_status)
@@ -184,7 +195,7 @@ export default function AppChat() {
         } catch {
             setMessages(prev => [
                 ...prev,
-                { sender: 'bot', text: '⚠️ Orchestrator Offline. Please check your local server.', timestamp: new Date() }
+                { sender: 'bot', text: 'System Error: Orchestrator connection failed. Please verify the backend service is running.', timestamp: new Date(), stage: currentStage }
             ])
         } finally {
             setIsLoading(false)
@@ -222,7 +233,7 @@ export default function AppChat() {
                             </h1>
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Neural Net Online</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">System Online</span>
                             </div>
                         </div>
                     </div>
@@ -297,9 +308,19 @@ export default function AppChat() {
                                     <div className={`flex flex-col max-w-[85%] md:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
 
                                         <div className={`flex items-center gap-2 mb-2 px-1 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                {isUser ? 'You' : 'Orchestrator'}
-                                            </span>
+                                            {!isUser && (() => {
+                                                const agentInfo = getAgentInfo(msg.stage || currentStage)
+                                                return (
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${agentInfo.color}`}>
+                                                        {agentInfo.name}
+                                                    </span>
+                                                )
+                                            })()}
+                                            {isUser && (
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                    Applicant
+                                                </span>
+                                            )}
                                             <span className="text-[10px] text-slate-300">•</span>
                                             <span className="text-[10px] text-slate-400 flex items-center gap-1">
                                                 <Clock size={10} /> {formatTime(msg.timestamp)}
@@ -312,13 +333,17 @@ export default function AppChat() {
                                                 : 'bg-white border border-slate-100 text-slate-700 rounded-[24px] rounded-tl-sm hover:shadow-lg hover:shadow-slate-200/50'
                                             }`}
                                         >
-                                            {!isUser && (
-                                                <div className="absolute -left-3 -top-3 bg-white p-1 rounded-full border border-slate-100 shadow-sm">
-                                                    <div className="bg-blue-100 p-1.5 rounded-full">
-                                                        <Bot size={14} className="text-blue-600" />
+                                            {!isUser && (() => {
+                                                const agentInfo = getAgentInfo(msg.stage || currentStage)
+                                                const AgentIcon = agentInfo.icon
+                                                return (
+                                                    <div className="absolute -left-3 -top-3 bg-white p-1 rounded-full border border-slate-100 shadow-sm">
+                                                        <div className={`${agentInfo.bg} p-1.5 rounded-full`}>
+                                                            <AgentIcon size={14} className={agentInfo.color} />
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
+                                                )
+                                            })()}
 
                                             <div className="text-[15px] leading-7 font-medium">
                                                 {!isUser && isLast ? (
@@ -338,22 +363,27 @@ export default function AppChat() {
                         })}
                     </AnimatePresence>
 
-                    {isLoading && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="flex justify-start w-full"
-                        >
-                            <div className="bg-white/80 backdrop-blur-sm border border-white px-6 py-4 rounded-[24px] rounded-tl-sm shadow-sm flex items-center gap-3">
-                                <div className="flex space-x-1.5">
-                                    <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-2 h-2 bg-blue-500 rounded-full" />
-                                    <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-blue-500 rounded-full" />
-                                    <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-blue-500 rounded-full" />
+                    {isLoading && (() => {
+                        const agentInfo = getAgentInfo(currentStage)
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex justify-start w-full"
+                            >
+                                <div className="bg-white/80 backdrop-blur-sm border border-white px-6 py-4 rounded-[24px] rounded-tl-sm shadow-sm flex items-center gap-3">
+                                    <div className="flex space-x-1.5">
+                                        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-2 h-2 bg-blue-500 rounded-full" />
+                                        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-blue-500 rounded-full" />
+                                        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-blue-500 rounded-full" />
+                                    </div>
+                                    <span className={`text-xs font-semibold uppercase tracking-wider ${agentInfo.color}`}>
+                                        {agentInfo.name} Processing
+                                    </span>
                                 </div>
-                                <span className="text-xs font-semibold text-blue-500 uppercase tracking-wider">Analyzing</span>
-                            </div>
-                        </motion.div>
-                    )}
+                            </motion.div>
+                        )
+                    })()}
 
                     {sanctionLetter && (
                         <motion.div
@@ -411,7 +441,7 @@ export default function AppChat() {
                             value={inputText}
                             onChange={e => setInputText(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                            placeholder="Type your request here..."
+                            placeholder="Enter applicant information or loan request..."
                             className="flex-1 bg-transparent px-2 py-3 text-slate-800 placeholder:text-slate-400 focus:outline-none font-medium text-[15px]"
                         />
                         <button
@@ -426,7 +456,7 @@ export default function AppChat() {
                         </button>
                     </div>
                     <p className="text-center mt-3 text-[10px] text-slate-400 font-medium tracking-wide">
-                        Powered by Secure Neural Architecture v2.1
+                        Loan Operations Platform • Rule-Based Processing
                     </p>
                 </div>
             </div>
