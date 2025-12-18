@@ -160,6 +160,7 @@ export default function AppChat() {
     const [sanctionLetter, setSanctionLetter] = useState(null)
     const [applicationStatus, setApplicationStatus] = useState('Initiated')
     const [riskAssessment, setRiskAssessment] = useState(null) // { score, level, factors }
+    const [decisionInfo, setDecisionInfo] = useState(null) // { type, reason, source, policy }
 
     // Agent Playback State
     const [isOrchestrating, setIsOrchestrating] = useState(false)
@@ -227,6 +228,16 @@ export default function AppChat() {
                 })
             }
 
+            // Store decision metadata
+            if (data.decision_type) {
+                setDecisionInfo({
+                    type: data.decision_type,
+                    reason: data.decision_reason,
+                    source: data.decision_source,
+                    policy: data.policy_applied
+                })
+            }
+
             // Cleanup
             setOrchestrationStep(null)
             setIsOrchestrating(false)
@@ -286,6 +297,16 @@ export default function AppChat() {
                         score: data.risk_score,
                         level: data.risk_level,
                         factors: data.risk_factors || []
+                    })
+                }
+
+                // Store decision metadata
+                if (data.decision_type) {
+                    setDecisionInfo({
+                        type: data.decision_type,
+                        reason: data.decision_reason,
+                        source: data.decision_source,
+                        policy: data.policy_applied
                     })
                 }
                 setIsLoading(false)
@@ -513,10 +534,10 @@ export default function AppChat() {
                                                     <div
                                                         key={step}
                                                         className={`w-8 h-1 rounded-full transition-colors duration-300 ${orchestrationStep === step
-                                                                ? 'bg-blue-500'
-                                                                : ['credit', 'risk', 'sanction'].indexOf(orchestrationStep) > idx
-                                                                    ? 'bg-emerald-400'
-                                                                    : 'bg-slate-200'
+                                                            ? 'bg-blue-500'
+                                                            : ['credit', 'risk', 'sanction'].indexOf(orchestrationStep) > idx
+                                                                ? 'bg-emerald-400'
+                                                                : 'bg-slate-200'
                                                             }`}
                                                     />
                                                 ))}
@@ -605,6 +626,32 @@ export default function AppChat() {
                                             <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Application Complete</p>
                                         </div>
                                     </div>
+
+                                    {/* Policy Decision Badge */}
+                                    {decisionInfo && (
+                                        <div className={`mb-4 p-3 rounded-xl border ${decisionInfo.type === 'AUTOMATED'
+                                                ? 'bg-blue-50 border-blue-200'
+                                                : 'bg-amber-50 border-amber-200'
+                                            }`}>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${decisionInfo.type === 'AUTOMATED'
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-amber-100 text-amber-700'
+                                                    }`}>
+                                                    {decisionInfo.type === 'AUTOMATED' ? 'Auto-Approved' : 'Human Review'}
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-600">
+                                                {decisionInfo.type === 'AUTOMATED'
+                                                    ? 'This loan falls within the automated approval policy and has been approved.'
+                                                    : 'This loan exceeds the automated approval limit and has been forwarded for manual review.'}
+                                            </p>
+                                            <p className="text-[9px] text-slate-400 mt-1">
+                                                Source: {decisionInfo.source}
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
                                         <div className="flex items-center gap-2 mb-2">
                                             <CheckCircle2 size={14} className="text-emerald-500" />
