@@ -1,6 +1,12 @@
 import os
 import google.generativeai as genai
-from backend.utils.state import create_initial_state
+
+# Load .env file if python-dotenv is available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
