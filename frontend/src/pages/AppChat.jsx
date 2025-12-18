@@ -160,6 +160,7 @@ export default function AppChat() {
 
     const sessionIdRef = useRef(`LOAN-${Math.floor(1000 + Math.random() * 9000)}`)
     const messagesEndRef = useRef(null)
+    const [showEntryBanner, setShowEntryBanner] = useState(true)
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -249,7 +250,7 @@ export default function AppChat() {
                             className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-colors"
                         >
                             <ClipboardList size={14} className="text-slate-500" />
-                            <span className="text-xs font-medium text-slate-600">Applications</span>
+                            <span className="text-xs font-medium text-slate-600">View Applications</span>
                         </Link>
                         <div className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm flex items-center gap-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">ID</span>
@@ -290,6 +291,23 @@ export default function AppChat() {
                         <span className="text-[11px] text-slate-500">Loans up to ₹50,000</span>
                     </div>
                 </div>
+
+                {/* Entry Context Banner - Dismissible */}
+                {showEntryBanner && (
+                    <div className="mx-6 md:mx-8 mt-2 z-20 relative">
+                        <div className="flex items-center justify-between px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg">
+                            <span className="text-xs text-slate-600">
+                                You're now inside the <strong>LoanOps Workspace</strong>. Start by requesting a loan to see the complete flow.
+                            </span>
+                            <button
+                                onClick={() => setShowEntryBanner(false)}
+                                className="text-slate-400 hover:text-slate-600 text-xs ml-3"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex-1 overflow-y-auto px-6 md:px-10 pt-6 pb-32 space-y-8 z-10 scrollbar-hide">
                     <AnimatePresence mode="popLayout">
@@ -401,27 +419,43 @@ export default function AppChat() {
                                             <Activity className="text-emerald-600" size={20} />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-slate-800">Loan Approved</h3>
-                                            <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Official Document</p>
+                                            <h3 className="font-bold text-slate-800">Loan Sanctioned</h3>
+                                            <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Application Complete</p>
                                         </div>
                                     </div>
                                     <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
                                         <div className="flex items-center gap-2 mb-2">
                                             <CheckCircle2 size={14} className="text-emerald-500" />
-                                            <span className="text-xs text-slate-500">Credit Check Passed</span>
+                                            <span className="text-xs text-slate-500">Identity Verification Complete</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <CheckCircle2 size={14} className="text-emerald-500" />
+                                            <span className="text-xs text-slate-500">Credit & Risk Assessment Passed</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <CheckCircle2 size={14} className="text-emerald-500" />
-                                            <span className="text-xs text-slate-500">Risk Assessment Complete</span>
+                                            <span className="text-xs text-slate-500">Sanction Letter Generated</span>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => window.open(`http://localhost:8000/files/${sanctionLetter}`, '_blank')}
-                                        className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs tracking-widest uppercase hover:bg-black transition-colors flex items-center justify-center gap-2 group/btn"
+                                        className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs tracking-widest uppercase hover:bg-black transition-colors flex items-center justify-center gap-2 group/btn mb-3"
                                     >
                                         <Download size={16} className="group-hover/btn:animate-bounce" />
-                                        Download PDF
+                                        Download Sanction Letter
                                     </button>
+                                    {/* End-of-Flow Closure */}
+                                    <div className="text-center pt-3 border-t border-slate-100">
+                                        <p className="text-[10px] text-slate-500 mb-2">
+                                            This application is complete and recorded.
+                                        </p>
+                                        <Link
+                                            to="/applications"
+                                            className="text-[11px] font-semibold text-blue-600 hover:text-blue-700"
+                                        >
+                                            View All Applications →
+                                        </Link>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
