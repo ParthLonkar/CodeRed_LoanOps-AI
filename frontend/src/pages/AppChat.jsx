@@ -161,13 +161,81 @@ export default function AppChat() {
     const [applicationStatus, setApplicationStatus] = useState('Initiated')
     const [riskAssessment, setRiskAssessment] = useState(null) // { score, level, factors }
 
+    // Agent Playback State
+    const [isOrchestrating, setIsOrchestrating] = useState(false)
+    const [orchestrationStep, setOrchestrationStep] = useState(null) // 'credit' | 'risk' | 'sanction' | null
+    const [pendingResponse, setPendingResponse] = useState(null) // Store full backend response for delayed reveal
+
     const sessionIdRef = useRef(`LOAN-${Math.floor(1000 + Math.random() * 9000)}`)
     const messagesEndRef = useRef(null)
     const [showEntryBanner, setShowEntryBanner] = useState(true)
 
+    // Agent-specific messages for orchestration playback
+    const orchestrationMessages = {
+        credit: "Evaluating credit eligibility based on income and EMI ratios...",
+        risk: "Computing automated risk score and contributing factors...",
+        sanction: "Finalizing decision and generating sanction letter..."
+    }
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [messages, isLoading])
+    }, [messages, isLoading, orchestrationStep])
+
+    // Orchestration Playback Effect - runs when we have a pending response
+    useEffect(() => {
+        if (!pendingResponse || !isOrchestrating) return
+
+        const runOrchestration = async () => {
+            const steps = ['credit', 'risk', 'sanction']
+
+            for (const step of steps) {
+                setOrchestrationStep(step)
+                setCurrentStage(step === 'credit' ? 'credit' : step === 'risk' ? 'risk' : 'sanction')
+
+                // Add orchestration message
+                setMessages(prev => [...prev, {
+                    sender: 'bot',
+                    text: orchestrationMessages[step],
+                    timestamp: new Date(),
+                    stage: step,
+                    isOrchestrationStep: true
+                }])
+
+                // Wait for effect
+                await new Promise(resolve => setTimeout(resolve, 900 + Math.random() * 300))
+            }
+
+            // After all steps complete, show the final response
+            const data = pendingResponse
+
+            setMessages(prev => [...prev, {
+                sender: 'bot',
+                text: data.reply,
+                timestamp: new Date(),
+                stage: data.stage || 'sanction'
+            }])
+
+            if (data.stage) setCurrentStage(data.stage)
+            if (data.application_status) setApplicationStatus(data.application_status)
+            if (data.sanction_letter) setSanctionLetter(data.sanction_letter)
+
+            if (data.risk_score !== null && data.risk_score !== undefined) {
+                setRiskAssessment({
+                    score: data.risk_score,
+                    level: data.risk_level,
+                    factors: data.risk_factors || []
+                })
+            }
+
+            // Cleanup
+            setOrchestrationStep(null)
+            setIsOrchestrating(false)
+            setPendingResponse(null)
+            setIsLoading(false)
+        }
+
+        runOrchestration()
+    }, [pendingResponse, isOrchestrating])
 
     const handleSendMessage = async () => {
         if (!inputText.trim()) return
@@ -191,25 +259,42 @@ export default function AppChat() {
             })
 
             const data = await response.json()
-            setMessages(prev => [...prev, { sender: 'bot', text: data.reply, timestamp: new Date(), stage: data.stage || currentStage }])
 
-            if (data.stage) setCurrentStage(data.stage)
-            if (data.application_status) setApplicationStatus(data.application_status)
-            if (data.sanction_letter) setSanctionLetter(data.sanction_letter)
-            // Store risk assessment data when available
-            if (data.risk_score !== null && data.risk_score !== undefined) {
-                setRiskAssessment({
-                    score: data.risk_score,
-                    level: data.risk_level,
-                    factors: data.risk_factors || []
-                })
+            // Check if this is a stage that triggers orchestration playback
+            // Trigger orchestration when moving to underwriting/sanction/rejected from verification
+            const shouldOrchestrate = (
+                data.stage === 'sanction' ||
+                data.stage === 'rejected' ||
+                (data.stage === 'underwriting' && currentStage === 'verification')
+            )
+
+            if (shouldOrchestrate && data.risk_score !== undefined) {
+                // Store response for orchestrated reveal
+                setPendingResponse(data)
+                setIsOrchestrating(true)
+                // isLoading stays true during orchestration
+            } else {
+                // Normal flow - display immediately
+                setMessages(prev => [...prev, { sender: 'bot', text: data.reply, timestamp: new Date(), stage: data.stage || currentStage }])
+
+                if (data.stage) setCurrentStage(data.stage)
+                if (data.application_status) setApplicationStatus(data.application_status)
+                if (data.sanction_letter) setSanctionLetter(data.sanction_letter)
+
+                if (data.risk_score !== null && data.risk_score !== undefined) {
+                    setRiskAssessment({
+                        score: data.risk_score,
+                        level: data.risk_level,
+                        factors: data.risk_factors || []
+                    })
+                }
+                setIsLoading(false)
             }
         } catch {
             setMessages(prev => [
                 ...prev,
                 { sender: 'bot', text: 'System Error: Orchestrator connection failed. Please verify the backend service is running.', timestamp: new Date(), stage: currentStage }
             ])
-        } finally {
             setIsLoading(false)
         }
     }
@@ -393,22 +478,54 @@ export default function AppChat() {
                     </AnimatePresence>
 
                     {isLoading && (() => {
-                        const agentInfo = getAgentInfo(currentStage)
+                        const agentInfo = getAgentInfo(orchestrationStep || currentStage)
+                        const stepLabels = {
+                            credit: 'Credit Analyst',
+                            risk: 'Risk Engine',
+                            sanction: 'Sanction Agent'
+                        }
+                        const displayName = isOrchestrating && orchestrationStep
+                            ? stepLabels[orchestrationStep]
+                            : agentInfo.name
+
                         return (
                             <motion.div
+                                key={orchestrationStep || 'loading'}
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="flex justify-start w-full"
                             >
-                                <div className="bg-white/80 backdrop-blur-sm border border-white px-6 py-4 rounded-[24px] rounded-tl-sm shadow-sm flex items-center gap-3">
-                                    <div className="flex space-x-1.5">
-                                        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-2 h-2 bg-blue-500 rounded-full" />
-                                        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-blue-500 rounded-full" />
-                                        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-blue-500 rounded-full" />
+                                <div className="bg-white/80 backdrop-blur-sm border border-slate-200 px-6 py-4 rounded-[24px] rounded-tl-sm shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex space-x-1.5">
+                                            <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-2 h-2 bg-blue-500 rounded-full" />
+                                            <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-blue-500 rounded-full" />
+                                            <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-blue-500 rounded-full" />
+                                        </div>
+                                        <span className={`text-xs font-semibold uppercase tracking-wider ${agentInfo.color}`}>
+                                            {displayName} {isOrchestrating ? 'Active' : 'Processing'}
+                                        </span>
                                     </div>
-                                    <span className={`text-xs font-semibold uppercase tracking-wider ${agentInfo.color}`}>
-                                        {agentInfo.name} Processing
-                                    </span>
+                                    {isOrchestrating && (
+                                        <div className="mt-2 flex items-center gap-1.5">
+                                            <div className="flex gap-1">
+                                                {['credit', 'risk', 'sanction'].map((step, idx) => (
+                                                    <div
+                                                        key={step}
+                                                        className={`w-8 h-1 rounded-full transition-colors duration-300 ${orchestrationStep === step
+                                                                ? 'bg-blue-500'
+                                                                : ['credit', 'risk', 'sanction'].indexOf(orchestrationStep) > idx
+                                                                    ? 'bg-emerald-400'
+                                                                    : 'bg-slate-200'
+                                                            }`}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <span className="text-[10px] text-slate-400 ml-1">
+                                                Step {['credit', 'risk', 'sanction'].indexOf(orchestrationStep) + 1}/3
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
                         )
@@ -434,10 +551,10 @@ export default function AppChat() {
                                         <p className="text-2xl font-bold text-slate-800">{riskAssessment.score}<span className="text-sm text-slate-400 font-normal"> / 100</span></p>
                                     </div>
                                     <span className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase ${riskAssessment.level === 'Low'
-                                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                                            : riskAssessment.level === 'Medium'
-                                                ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                                                : 'bg-red-100 text-red-700 border border-red-200'
+                                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                        : riskAssessment.level === 'Medium'
+                                            ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                                            : 'bg-red-100 text-red-700 border border-red-200'
                                         }`}>
                                         {riskAssessment.level}
                                     </span>
