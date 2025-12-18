@@ -17,10 +17,10 @@ export default function Landing() {
                         </span>
                     </div>
                     <Link
-                        to="/app"
+                        to="/login"
                         className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
                     >
-                        Go to App →
+                        Login →
                     </Link>
                 </div>
             </header>
@@ -73,15 +73,25 @@ export default function Landing() {
 
                     {/* CTA Button */}
                     <Link
-                        to="/app"
+                        to="/signup"
                         className="inline-flex items-center gap-3 px-8 py-4 bg-slate-900 text-white text-lg font-bold rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-300/50"
                     >
                         Try Live Demo
                         <ArrowRight size={20} />
                     </Link>
 
+                    {/* Loan Scope Guardrail */}
+                    <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 rounded-full">
+                        <span className="text-sm font-medium text-slate-600">
+                            Supported Loan Range: <span className="font-semibold text-slate-800">₹5,000 – ₹50,000</span>
+                        </span>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-400">
+                        Designed for micro & small-ticket loans
+                    </p>
+
                     {/* Footer Note */}
-                    <p className="mt-8 text-sm text-slate-400">
+                    <p className="mt-6 text-sm text-slate-400">
                         Built for CodeRed Hackathon • React + FastAPI + AI Agents
                     </p>
                 </div>

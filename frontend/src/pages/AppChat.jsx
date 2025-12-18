@@ -265,16 +265,18 @@ export default function AppChat() {
 
                 {/* AI-Assisted Decision Mode Banner */}
                 <div className="mx-6 md:mx-8 mt-2 mb-0 z-20 relative">
-                    <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-50/80 border border-blue-100 rounded-xl">
+                    <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-50/80 border border-blue-100 rounded-xl flex-wrap">
                         <div className="flex items-center gap-2">
                             <Info size={14} className="text-blue-500" />
                             <span className="text-xs font-semibold text-blue-700">Decision Mode: AI-Assisted</span>
                         </div>
-                        <span className="text-slate-300">|</span>
+                        <span className="text-slate-300 hidden sm:inline">|</span>
                         <div className="flex items-center gap-1.5">
                             <Users size={12} className="text-slate-400" />
                             <span className="text-[11px] text-slate-500">Final sanction subject to human review</span>
                         </div>
+                        <span className="text-slate-300 hidden sm:inline">|</span>
+                        <span className="text-[11px] text-slate-500">Loans up to ₹50,000</span>
                     </div>
                 </div>
 
