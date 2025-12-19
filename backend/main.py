@@ -173,6 +173,28 @@ def get_or_create_session(session_id: str, user_id: Optional[str] = None) -> dic
     return session_store[session_id]
 
 
+def has_active_loan(user_id: str) -> tuple[bool, Optional[str]]:
+    """
+    Check if user has an active loan application.
+    
+    Active statuses: SANCTIONED, PENDING_REVIEW
+    Non-active: REJECTED, INITIATED, VERIFIED, APPROVED
+    
+    Returns:
+        (has_active, application_id) - True if user has active loan, with app ID
+    """
+    if not user_id:
+        return False, None
+    
+    for app_id, app in application_store.items():
+        if app.user_id == user_id:
+            if app.status in [LoanStatus.SANCTIONED, LoanStatus.PENDING_REVIEW]:
+                print(f"[ACTIVE LOAN CHECK] User {user_id} has active loan: {app_id} ({app.status.value})")
+                return True, app_id
+    
+    return False, None
+
+
 def update_application_status(session_id: str, stage: str, loan_amount: float = None):
     """
     Update application status based on workflow stage.
@@ -477,6 +499,22 @@ async def chat_endpoint(request: ChatRequest, authorization: Optional[str] = Hea
         
         session_id = request.session_id.strip()
         message = request.message.strip()
+        
+        # ======================================================================
+        # ONE ACTIVE LOAN PER USER GUARDRAIL
+        # Responsible lending: Block new loan if user already has active loan
+        # ======================================================================
+        is_new_session = session_id not in session_store
+        if is_new_session:
+            active_loan, active_loan_id = has_active_loan(user.user_id)
+            if active_loan:
+                print(f"[GUARDRAIL] Blocking new loan for user {user.user_id} - active loan: {active_loan_id}")
+                return ChatResponse(
+                    reply="I see that you already have an active loan application.\n\nFor responsible lending, we allow only one active loan at a time.\n\nOnce your current loan is completed or reviewed, you can apply again.",
+                    stage="sales",
+                    active_agent="SalesAgent",
+                    application_status="Blocked"
+                )
         
         # Get or create session (link to authenticated user)
         session = get_or_create_session(session_id, user.user_id)
