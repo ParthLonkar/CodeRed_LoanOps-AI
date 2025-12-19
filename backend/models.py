@@ -20,6 +20,7 @@ class LoanStatus(str, Enum):
     APPROVED = "Approved"
     REJECTED = "Rejected"
     SANCTIONED = "Sanctioned"
+    PENDING_REVIEW = "Pending Review"  # Human-in-the-loop cases
 
 
 class LoanApplication(BaseModel):
