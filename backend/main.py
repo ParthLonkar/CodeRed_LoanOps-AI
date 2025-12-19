@@ -180,7 +180,8 @@ def update_application_status(session_id: str, stage: str, loan_amount: float = 
     Stage to Status mapping:
     - sales/verification -> Initiated
     - underwriting -> Verified
-    - sanction -> Approved -> Sanctioned
+    - sanction (auto-approved) -> Sanctioned
+    - sanction (human review) -> Pending Review
     - rejected -> Rejected
     
     CRITICAL: Includes hard guard to prevent sanction without verification
@@ -199,19 +200,27 @@ def update_application_status(session_id: str, stage: str, loan_amount: float = 
     session = session_store.get(session_id, {})
     is_verified = session.get("verified") == True and session.get("verification_status") == "verified"
     
-    # Map stage to status
-    stage_to_status = {
-        "sales": LoanStatus.INITIATED,
-        "verification": LoanStatus.INITIATED,
-        "underwriting": LoanStatus.VERIFIED,
-        "sanction": LoanStatus.SANCTIONED,
-        "rejected": LoanStatus.REJECTED,
-    }
-    
-    new_status = stage_to_status.get(stage)
+    # Determine status based on stage and decision_type
+    if stage == "sanction":
+        # Check decision_type to differentiate auto-approval vs human review
+        decision_type = session.get("decision_type")
+        if decision_type == "HUMAN_REVIEW":
+            new_status = LoanStatus.PENDING_REVIEW
+            print(f"[APPLICATION] {session_id} -> PENDING_REVIEW (human-in-the-loop)")
+        else:
+            new_status = LoanStatus.SANCTIONED
+    else:
+        # Map other stages to status
+        stage_to_status = {
+            "sales": LoanStatus.INITIATED,
+            "verification": LoanStatus.INITIATED,
+            "underwriting": LoanStatus.VERIFIED,
+            "rejected": LoanStatus.REJECTED,
+        }
+        new_status = stage_to_status.get(stage)
     
     # HARD GUARD: Prevent sanction/verified status if not actually verified
-    if new_status in [LoanStatus.SANCTIONED, LoanStatus.VERIFIED]:
+    if new_status in [LoanStatus.SANCTIONED, LoanStatus.VERIFIED, LoanStatus.PENDING_REVIEW]:
         if not is_verified:
             print(f"[APPLICATION] BLOCKED: Cannot set {new_status.value} - verification not complete")
             new_status = LoanStatus.INITIATED  # Keep as INITIATED if not verified
@@ -220,7 +229,7 @@ def update_application_status(session_id: str, stage: str, loan_amount: float = 
         app.status = new_status
         print(f"[APPLICATION] {session_id} status updated to: {new_status.value}")
     
-    # Update sanction_letter if available in session
+    # Update sanction_letter if available in session (only for SANCTIONED, not PENDING_REVIEW)
     sanction_letter = session.get("sanction_letter")
     if sanction_letter and new_status == LoanStatus.SANCTIONED:
         app.sanction_letter = sanction_letter

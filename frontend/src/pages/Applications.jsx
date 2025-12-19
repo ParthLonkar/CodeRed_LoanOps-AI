@@ -23,6 +23,7 @@ const StatusBadge = ({ status }) => {
         'Approved': { bg: 'bg-emerald-500/10', text: 'text-emerald-600', border: 'border-emerald-500/20', icon: CheckCircle2 },
         'Sanctioned': { bg: 'bg-emerald-500/10', text: 'text-emerald-600', border: 'border-emerald-500/20', icon: CheckCircle2 },
         'Rejected': { bg: 'bg-red-500/10', text: 'text-red-600', border: 'border-red-500/20', icon: XCircle },
+        'Pending Review': { bg: 'bg-amber-500/10', text: 'text-amber-600', border: 'border-amber-500/20', icon: AlertCircle },
     }
 
     const config = statusConfig[status] || statusConfig['Initiated']
@@ -248,10 +249,10 @@ export default function Applications() {
                                             <td className="px-6 py-4">
                                                 {app.risk_level ? (
                                                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold ${app.risk_level === 'Low'
-                                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                            : app.risk_level === 'Medium'
-                                                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                                : 'bg-red-50 text-red-700 border border-red-200'
+                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                        : app.risk_level === 'Medium'
+                                                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                            : 'bg-red-50 text-red-700 border border-red-200'
                                                         }`}>
                                                         {app.risk_level} ({app.risk_score})
                                                     </span>
