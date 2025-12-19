@@ -89,11 +89,14 @@ class ChatResponse(BaseModel):
     decision_reason: Optional[str] = None  # Human-readable explanation
     decision_source: Optional[str] = None  # System (Policy-Based) | Human-in-the-Loop
     policy_applied: Optional[str] = None  # Threshold used
+    # XAI Decision Rationale (structured explanation)
+    decision_rationale: Optional[Dict[str, Any]] = None  # Explainable decision breakdown
     # Verification Attention (for acknowledgment flow)
     verification_attention_required: Optional[bool] = None
     verification_issue: Optional[str] = None
     # Orchestration Control (for frontend synchronization)
     halt_agents: Optional[bool] = None  # True = freeze agent visualization, do not advance
+
 
 # ============================================================================
 # In-Memory Session State (Minimal, for hackathon demo)
@@ -506,6 +509,9 @@ async def chat_endpoint(request: ChatRequest, authorization: Optional[str] = Hea
         # Get halt_agents from supervisor result (for frontend synchronization)
         halt_agents = result.get("halt_agents", False)
         
+        # Get XAI decision rationale if available
+        decision_rationale = session.get("decision_rationale")
+        
         # Return structured response for frontend
         return ChatResponse(
             reply=result["reply"],
@@ -520,6 +526,7 @@ async def chat_endpoint(request: ChatRequest, authorization: Optional[str] = Hea
             decision_reason=decision_reason,
             decision_source=decision_source,
             policy_applied=policy_applied,
+            decision_rationale=decision_rationale,
             verification_attention_required=verification_attention_required,
             verification_issue=verification_issue,
             halt_agents=halt_agents

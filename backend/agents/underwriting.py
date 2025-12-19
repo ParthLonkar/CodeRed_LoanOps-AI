@@ -8,6 +8,7 @@ For demo, auto-approves most loans to show the full flow.
 
 from typing import Dict, Any
 from utils.risk_scoring import compute_risk_score
+from utils.decision_rationale import generate_decision_rationale
 
 
 def underwriting_agent_node(state: Dict, user_message: str) -> Dict[str, Any]:
@@ -115,6 +116,20 @@ Thank you for your interest in LoanOps."""
         
         print(f"[UNDERWRITING AGENT] Decision: REJECTED - {reason}")
     
+    # =========================================================================
+    # GENERATE DECISION RATIONALE (XAI - Explainability Layer) for REJECTED
+    # =========================================================================
+    if decision == "rejected":
+        decision_rationale = generate_decision_rationale(
+            decision="REJECTED",
+            loan_amount=loan_amount,
+            salary=salary,
+            emi=emi,
+            risk_score=risk_result["risk_score"],
+            risk_level=risk_result["risk_level"]
+        )
+        state["decision_rationale"] = decision_rationale
+    
     return {
         "reply": reply,
         "underwriting_decision": decision,
@@ -125,5 +140,7 @@ Thank you for your interest in LoanOps."""
         # Risk Assessment Data
         "risk_score": risk_result["risk_score"],
         "risk_level": risk_result["risk_level"],
-        "risk_factors": risk_result["risk_factors"]
+        "risk_factors": risk_result["risk_factors"],
+        # XAI Decision Rationale (only for rejected)
+        "decision_rationale": state.get("decision_rationale")
     }
