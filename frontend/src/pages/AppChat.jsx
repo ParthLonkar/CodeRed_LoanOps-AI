@@ -162,6 +162,7 @@ export default function AppChat() {
     const [applicationStatus, setApplicationStatus] = useState('Initiated')
     const [riskAssessment, setRiskAssessment] = useState(null) // { score, level, factors }
     const [decisionInfo, setDecisionInfo] = useState(null) // { type, reason, source, policy }
+    const [decisionRationale, setDecisionRationale] = useState(null) // XAI decision explanation
 
     // Agent Playback State
     const [isOrchestrating, setIsOrchestrating] = useState(false)
@@ -239,6 +240,11 @@ export default function AppChat() {
                     source: data.decision_source,
                     policy: data.policy_applied
                 })
+            }
+
+            // Store XAI decision rationale
+            if (data.decision_rationale) {
+                setDecisionRationale(data.decision_rationale)
             }
 
             // Cleanup
@@ -338,6 +344,11 @@ export default function AppChat() {
                         source: data.decision_source,
                         policy: data.policy_applied
                     })
+                }
+
+                // Store XAI decision rationale
+                if (data.decision_rationale) {
+                    setDecisionRationale(data.decision_rationale)
                 }
                 setIsLoading(false)
             }
@@ -712,6 +723,107 @@ export default function AppChat() {
                                 <p className="text-[9px] text-slate-400 mt-4 pt-3 border-t border-slate-100 text-center">
                                     Rule-based assessment for transparency. Does not determine approval.
                                 </p>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* XAI Decision Explainability Card - Shows why decision was made */}
+                    {decisionRationale && (currentStage === 'sanction' || currentStage === 'rejected') && (
+                        <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="flex justify-start pl-2"
+                        >
+                            <div className={`w-96 bg-white border rounded-2xl p-5 shadow-sm ${decisionRationale.decision === 'APPROVED'
+                                    ? 'border-emerald-200'
+                                    : decisionRationale.decision === 'REJECTED'
+                                        ? 'border-red-200'
+                                        : 'border-amber-200'
+                                }`}>
+                                {/* Decision Title */}
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${decisionRationale.decision === 'APPROVED'
+                                            ? 'bg-emerald-100'
+                                            : decisionRationale.decision === 'REJECTED'
+                                                ? 'bg-red-100'
+                                                : 'bg-amber-100'
+                                        }`}>
+                                        {decisionRationale.decision === 'APPROVED' && <CheckCircle2 className="text-emerald-600" size={20} />}
+                                        {decisionRationale.decision === 'REJECTED' && <AlertTriangle className="text-red-600" size={20} />}
+                                        {decisionRationale.decision === 'MANUAL_REVIEW' && <Clock className="text-amber-600" size={20} />}
+                                    </div>
+                                    <div>
+                                        <h3 className={`font-bold text-sm ${decisionRationale.decision === 'APPROVED'
+                                                ? 'text-emerald-700'
+                                                : decisionRationale.decision === 'REJECTED'
+                                                    ? 'text-red-700'
+                                                    : 'text-amber-700'
+                                            }`}>
+                                            {decisionRationale.decision === 'APPROVED' && '✅ Loan Approved'}
+                                            {decisionRationale.decision === 'REJECTED' && '❌ Loan Not Approved'}
+                                            {decisionRationale.decision === 'MANUAL_REVIEW' && '⏳ Manual Review Required'}
+                                        </h3>
+                                        <p className="text-[10px] text-slate-500">
+                                            Confidence: {decisionRationale.confidence}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Why This Decision */}
+                                <div className="mb-4">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold">
+                                        Why this decision was made
+                                    </p>
+                                    <div className="space-y-2">
+                                        {decisionRationale.key_factors?.map((factor, idx) => (
+                                            <div key={idx} className="flex items-start gap-2 text-xs text-slate-600">
+                                                <CheckCircle2 size={12} className="text-slate-400 mt-0.5 shrink-0" />
+                                                <span>{factor}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Metrics Grid */}
+                                {decisionRationale.metrics && (
+                                    <div className="grid grid-cols-2 gap-2 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div>
+                                            <p className="text-[9px] text-slate-400 uppercase">Loan Amount</p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                ₹{decisionRationale.metrics.loan_amount?.toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] text-slate-400 uppercase">Monthly EMI</p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                ₹{decisionRationale.metrics.emi?.toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] text-slate-400 uppercase">Monthly Income</p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                ₹{decisionRationale.metrics.monthly_income?.toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] text-slate-400 uppercase">EMI Ratio</p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                {decisionRationale.metrics.emi_ratio}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Decision Mode Label */}
+                                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                                    <span className="text-[9px] text-slate-400">
+                                        Decision Mode: {decisionRationale.decision_mode}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400">
+                                        This decision can be reviewed by a human
+                                    </span>
+                                </div>
                             </div>
                         </motion.div>
                     )}

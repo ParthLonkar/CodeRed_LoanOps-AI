@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Dict, Any
 from fpdf import FPDF
 from utils.crypto_utils import decrypt_data
+from utils.decision_rationale import generate_decision_rationale
 
 
 # =============================================================================
@@ -379,6 +380,33 @@ You will receive an update via email once the review is complete. Thank you for 
     state["decision_type"] = decision_type
     state["decision_source"] = decision_source
     
+    # =========================================================================
+    # GENERATE DECISION RATIONALE (XAI - Explainability Layer)
+    # Provides structured explanation of decision for frontend display
+    # =========================================================================
+    
+    # Map decision_type to rationale decision format
+    if decision_type == "AUTOMATED":
+        rationale_decision = "APPROVED"
+    elif decision_type == "HUMAN_REVIEW":
+        rationale_decision = "MANUAL_REVIEW"
+    else:
+        rationale_decision = decision_type
+    
+    decision_rationale = generate_decision_rationale(
+        decision=rationale_decision,
+        loan_amount=loan_amount,
+        salary=state.get("salary", 50000),
+        emi=loan_details.get("emi", 0),
+        risk_score=state.get("risk_score"),
+        risk_level=state.get("risk_level")
+    )
+    
+    # Store rationale in state for API response
+    state["decision_rationale"] = decision_rationale
+    
+    print(f"[SANCTION AGENT] Decision rationale generated: {rationale_decision}")
+    
     return {
         "reply": reply,
         "sanction_status": sanction_status,
@@ -389,6 +417,8 @@ You will receive an update via email once the review is complete. Thank you for 
         "decision_type": decision_type,
         "decision_reason": decision_reason,
         "decision_source": decision_source,
-        "policy_applied": policy_applied
+        "policy_applied": policy_applied,
+        # XAI Decision Rationale
+        "decision_rationale": decision_rationale
     }
 
