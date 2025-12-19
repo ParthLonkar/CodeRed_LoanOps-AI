@@ -153,7 +153,7 @@ export default function AppChat() {
     const { user, token, logout } = useAuth()
 
     const [messages, setMessages] = useState([
-        { sender: 'bot', text: 'System initialized. Loan Operations Orchestrator is ready. Please provide borrower details to begin the application process.', timestamp: new Date(), stage: 'sales' }
+        { sender: 'bot', text: 'Hello! I\'m here to help you with your loan application. Let me know what type of loan you\'re looking for, and I\'ll guide you through the process step by step.', timestamp: new Date(), stage: 'sales' }
     ])
     const [inputText, setInputText] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -175,11 +175,11 @@ export default function AppChat() {
     const [showKYCForm, setShowKYCForm] = useState(false) // Show structured KYC form
 
     // Agent-specific messages for orchestration playback
-    // DEMO: Descriptive messages to help observers understand what each agent does
+    // Professional loan officer tone - clear, calm, informative
     const orchestrationMessages = {
-        credit: "Analyzing identity documents and credit history...",
-        risk: "Evaluating eligibility against policy rules...",
-        sanction: "Generating final sanction decision..."
+        credit: "Reviewing your financial profile...",
+        risk: "Assessing eligibility based on our criteria...",
+        sanction: "One moment — preparing your decision..."
     }
 
     useEffect(() => {
@@ -541,10 +541,11 @@ export default function AppChat() {
 
                     {isLoading && (() => {
                         const agentInfo = getAgentInfo(orchestrationStep || currentStage)
+                        // Contextual loader labels - more human, less technical
                         const stepLabels = {
-                            credit: 'Credit Analyst',
-                            risk: 'Risk Engine',
-                            sanction: 'Sanction Agent'
+                            credit: 'Reviewing details',
+                            risk: 'Checking eligibility',
+                            sanction: 'Preparing decision'
                         }
                         const displayName = isOrchestrating && orchestrationStep
                             ? stepLabels[orchestrationStep]
@@ -565,7 +566,7 @@ export default function AppChat() {
                                             <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-blue-500 rounded-full" />
                                         </div>
                                         <span className={`text-xs font-semibold uppercase tracking-wider ${agentInfo.color}`}>
-                                            {displayName} {isOrchestrating ? 'Active' : 'Processing'}
+                                            {displayName}{isOrchestrating ? '...' : ''}
                                         </span>
                                     </div>
                                     {isOrchestrating && (
@@ -607,7 +608,7 @@ export default function AppChat() {
                                     // Add verification success message
                                     setMessages(prev => [...prev, {
                                         sender: 'bot',
-                                        text: data.reply || '✅ KYC Verification Complete. Now proceeding to credit evaluation...',
+                                        text: data.reply || "Thanks — your details look good. I'll now assess your loan eligibility. This will just take a moment.",
                                         timestamp: new Date(),
                                         stage: 'verification'
                                     }])
@@ -736,18 +737,18 @@ export default function AppChat() {
                             className="flex justify-start pl-2"
                         >
                             <div className={`w-96 bg-white border rounded-2xl p-5 shadow-sm ${decisionRationale.decision === 'APPROVED'
-                                    ? 'border-emerald-200'
-                                    : decisionRationale.decision === 'REJECTED'
-                                        ? 'border-red-200'
-                                        : 'border-amber-200'
+                                ? 'border-emerald-200'
+                                : decisionRationale.decision === 'REJECTED'
+                                    ? 'border-red-200'
+                                    : 'border-amber-200'
                                 }`}>
                                 {/* Decision Title */}
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${decisionRationale.decision === 'APPROVED'
-                                            ? 'bg-emerald-100'
-                                            : decisionRationale.decision === 'REJECTED'
-                                                ? 'bg-red-100'
-                                                : 'bg-amber-100'
+                                        ? 'bg-emerald-100'
+                                        : decisionRationale.decision === 'REJECTED'
+                                            ? 'bg-red-100'
+                                            : 'bg-amber-100'
                                         }`}>
                                         {decisionRationale.decision === 'APPROVED' && <CheckCircle2 className="text-emerald-600" size={20} />}
                                         {decisionRationale.decision === 'REJECTED' && <AlertTriangle className="text-red-600" size={20} />}
@@ -755,10 +756,10 @@ export default function AppChat() {
                                     </div>
                                     <div>
                                         <h3 className={`font-bold text-sm ${decisionRationale.decision === 'APPROVED'
-                                                ? 'text-emerald-700'
-                                                : decisionRationale.decision === 'REJECTED'
-                                                    ? 'text-red-700'
-                                                    : 'text-amber-700'
+                                            ? 'text-emerald-700'
+                                            : decisionRationale.decision === 'REJECTED'
+                                                ? 'text-red-700'
+                                                : 'text-amber-700'
                                             }`}>
                                             {decisionRationale.decision === 'APPROVED' && '✅ Loan Approved'}
                                             {decisionRationale.decision === 'REJECTED' && '❌ Loan Not Approved'}
