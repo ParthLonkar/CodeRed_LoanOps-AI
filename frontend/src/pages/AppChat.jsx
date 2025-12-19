@@ -273,6 +273,28 @@ export default function AppChat() {
 
             const data = await response.json()
 
+
+            // ================================================================
+            // CRITICAL: Check halt_agents flag FIRST
+            // If halted, do NOT advance stages or trigger orchestration
+            // ================================================================
+            if (data.halt_agents) {
+                console.log('[FRONTEND] halt_agents=true - freezing agent visualization')
+                // Display the message but do NOT advance stages or trigger orchestration
+                setMessages(prev => [...prev, {
+                    sender: 'bot',
+                    text: data.reply,
+                    timestamp: new Date(),
+                    stage: 'verification',
+                    isWarning: true  // Mark as warning for styling
+                }])
+                // Keep stage frozen at verification
+                setCurrentStage('verification')
+                if (data.application_status) setApplicationStatus(data.application_status)
+                setIsLoading(false)
+                return  // STOP - do not continue with orchestration
+            }
+
             // Check if this is a stage that triggers orchestration playback
             // Trigger orchestration when moving to underwriting/sanction/rejected from verification
             const shouldOrchestrate = (
@@ -592,6 +614,22 @@ export default function AppChat() {
                                             })
                                         })
                                         const result = await response.json()
+
+                                        // CRITICAL: Check halt_agents before advancing
+                                        if (result.halt_agents) {
+                                            console.log('[FRONTEND] halt_agents after KYC - freezing')
+                                            setMessages(prev => [...prev, {
+                                                sender: 'bot',
+                                                text: result.reply,
+                                                timestamp: new Date(),
+                                                stage: 'verification',
+                                                isWarning: true
+                                            }])
+                                            setCurrentStage('verification')
+                                            setIsLoading(false)
+                                            return
+                                        }
+
                                         if (result.stage) setCurrentStage(result.stage)
                                         if (result.application_status) setApplicationStatus(result.application_status)
 

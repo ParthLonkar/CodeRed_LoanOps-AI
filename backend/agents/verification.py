@@ -102,6 +102,25 @@ def verification_agent_node(state: Dict, user_message: Any) -> Dict[str, Any]:
                 "verification_mode": "SANDBOX_READY" if pan_result.get("pan_verified") == True else ("INVALID_FORMAT" if pan_result.get("verification_status") == "invalid_format" else "SIMULATED")
             }
             
+            # ================================================================
+            # Verification Acknowledgment for Format Issues
+            # If PAN format is invalid, PAUSE ORCHESTRATION until user acknowledges
+            # This is a BLOCKING flag - no other agents may run while paused
+            # ================================================================
+            pan_format_invalid = pan_result.get("verification_status") == "invalid_format"
+            
+            if pan_format_invalid:
+                state["verification_attention_required"] = True
+                state["orchestration_paused"] = True  # CRITICAL: Halts all agent routing
+                state["next_allowed_action"] = "USER_ACK"
+                state["verification_issue"] = "PAN format does not match expected pattern (ABCDE1234F)"
+                print(f"[VERIFICATION AGENT] ORCHESTRATION PAUSED - Attention required: {state['verification_issue']}")
+            else:
+                state["verification_attention_required"] = False
+                state["orchestration_paused"] = False
+                state["next_allowed_action"] = None
+                state["verification_issue"] = None
+            
             # Encrypt sensitive data for demo
             try:
                 sensitive_data = json.dumps({
@@ -133,7 +152,20 @@ def verification_agent_node(state: Dict, user_message: Any) -> Dict[str, Any]:
         
         summary_text = "\n".join(summary_items) if summary_items else "✓ KYC information received"
         
-        reply = f"""✅ KYC Verification Complete
+        # Check if acknowledgment required (PAN format issue)
+        if state.get("verification_attention_required"):
+            reply = f"""⚠️ Verification Notice
+
+{summary_text}
+
+⚠️ The PAN details provided do not match the expected format.
+This demo will continue, but in production this would require correction or manual review.
+
+Please reply "Continue" to proceed with your loan application."""
+            
+            print("[VERIFICATION AGENT] Attention required - waiting for acknowledgment")
+        else:
+            reply = f"""✅ KYC Verification Complete
 
 {summary_text}
 

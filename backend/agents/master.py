@@ -78,6 +78,23 @@ def determine_next_stage(state: Dict, user_message: str) -> str:
         return "sales"
     
     elif current_stage == "verification":
+        # ================================================================
+        # Handle Verification Acknowledgment Flow
+        # If attention is required (e.g., PAN format issue), wait for user acknowledgment
+        # ================================================================
+        if state.get("verification_attention_required"):
+            acknowledge_keywords = ["continue", "proceed", "okay", "ok", "yes", "go ahead", "confirm"]
+            if any(keyword in message_lower for keyword in acknowledge_keywords):
+                # User acknowledged - clear flag and proceed
+                state["verification_attention_required"] = False
+                state["verification_acknowledged"] = True
+                print("[SUPERVISOR] User acknowledged verification issue - proceeding to UNDERWRITING")
+                return "underwriting"
+            else:
+                # Still waiting for acknowledgment
+                print("[SUPERVISOR] Verification attention required - waiting for acknowledgment")
+                return "verification"
+        
         # CRITICAL: HARD GUARD - Only move to underwriting if EXPLICITLY verified
         # This ensures no loan can ever be sanctioned without verification
         if state.get("verified") == True and state.get("verification_status") == "verified":
@@ -179,17 +196,84 @@ def supervisor_node(state: Dict, user_message: str) -> Dict[str, Any]:
         user_message: User's input message
     
     Returns:
-        Dict with: reply, stage, active_agent
+        Dict with: reply, stage, active_agent, halt_agents
     
     DEMO SAFETY:
     - Never crashes
     - Always returns valid response
     - Clear logging for mentor visibility
+    
+    ORCHESTRATION CONTROL:
+    - Checks orchestration_paused flag BEFORE any routing
+    - No agents execute while paused
+    - Only user acknowledgment clears pause
     """
     try:
         print("\n" + "="*60)
         print("[SUPERVISOR] Processing message...")
         print("="*60)
+        
+        message_lower = user_message.lower().strip()
+        
+        # ================================================================
+        # CRITICAL: Orchestration Pause Check (BEFORE any routing)
+        # When paused, NO agents may execute until user acknowledges
+        # ================================================================
+        if state.get("orchestration_paused"):
+            acknowledge_keywords = ["continue", "proceed", "okay", "ok", "yes", "go ahead", "confirm"]
+            
+            if any(keyword in message_lower for keyword in acknowledge_keywords):
+                # User acknowledged - clear all pause flags
+                print("[SUPERVISOR] User acknowledged - clearing orchestration pause")
+                state["orchestration_paused"] = False
+                state["verification_attention_required"] = False
+                state["next_allowed_action"] = None
+                state["verification_acknowledged"] = True
+                
+                # Now proceed to underwriting
+                state["stage"] = "underwriting"
+                state["active_agent"] = "UnderwritingAgent"
+                
+                # Run underwriting agent
+                agent_response = underwriting_agent_node(state, user_message)
+                
+                # Handle auto-transition to sanction if approved
+                if state.get("underwriting_decision") == "approved":
+                    state["stage"] = "sanction"
+                    state["active_agent"] = "SanctionAgent"
+                    sanction_response = sanction_agent_node(state, user_message)
+                    return {
+                        "reply": sanction_response.get("reply", agent_response.get("reply")),
+                        "stage": state["stage"],
+                        "active_agent": state["active_agent"],
+                        "halt_agents": False
+                    }
+                
+                return {
+                    "reply": agent_response.get("reply", "Proceeding with loan evaluation..."),
+                    "stage": state["stage"],
+                    "active_agent": state["active_agent"],
+                    "halt_agents": False
+                }
+            else:
+                # Still paused - return halt message, do NOT run any agents
+                print("[SUPERVISOR] ORCHESTRATION PAUSED - waiting for user acknowledgment")
+                return {
+                    "reply": (
+                        "⚠️ Verification Notice\n\n"
+                        "The PAN details or uploaded document do not match the expected format.\n\n"
+                        "This demo will continue, but in production this would require correction "
+                        "or manual review.\n\n"
+                        "Please reply with **Continue** to proceed."
+                    ),
+                    "stage": "verification",
+                    "active_agent": "VerificationAgent",
+                    "halt_agents": True
+                }
+        
+        # ================================================================
+        # Normal Routing (only when NOT paused)
+        # ================================================================
         
         # Determine the next stage
         next_stage = determine_next_stage(state, user_message)
@@ -211,8 +295,31 @@ def supervisor_node(state: Dict, user_message: str) -> Dict[str, Any]:
                 "underwriting_decision": state.get("underwriting_decision")
             }
         
+        # Check if orchestration was paused by the agent we just called
+        if state.get("orchestration_paused"):
+            print("[SUPERVISOR] Agent set orchestration_paused - halting further processing")
+            return {
+                "reply": agent_response.get("reply", "Verification requires attention."),
+                "stage": state["stage"],
+                "active_agent": state["active_agent"],
+                "halt_agents": True
+            }
+        
         # Extract reply from agent response
         reply = agent_response.get("reply", "How can I assist you today?")
+        
+        # Handle acknowledgment confirmation - if user just acknowledged, provide confirmation
+        if state.get("verification_acknowledged") and next_stage == "underwriting":
+            reply = """✅ Acknowledgment received.
+
+Thank you for confirming. Your KYC details have been recorded.
+Proceeding to evaluate your loan eligibility..."""
+            # Clear the acknowledged flag after using it
+            state["verification_acknowledged"] = False
+            
+            # Now run underwriting immediately
+            agent_response = underwriting_agent_node(state, user_message)
+            reply = agent_response.get("reply", reply)
         
         # Update state with any agent-provided data
         if "underwriting_decision" in agent_response:
